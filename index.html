@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Olive's Productivity Tracker</title>
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --bg-2:#F4F9FF;
+    --card:#FFFFFF;
+    --card-2:#EFF6FF;
+    --blue:#2563EB;
+    --blue-dark:#1D4ED8;
+    --sky:#0EA5E9;
+    --leaf:#16A34A;
+    --amber:#F59E0B;
+    --ink:#1E293B;
+    --muted:#64748B;
+    --line:#DCEAFD;
+    --font-display:"Fraunces",Georgia,serif;
+    --font-body:"Inter",system-ui,-apple-system,sans-serif;
+    --font-mono:"JetBrains Mono",monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:var(--font-body);
+    background:linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:960px; margin:0 auto;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:20px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  .brand h1{
+    font-family:var(--font-display); font-weight:700; font-size:28px; letter-spacing:-0.02em;
+    color:var(--ink);
+  }
+  .brand p{color:var(--muted); font-size:13px; margin-top:4px;}
+
+  .badge{
+    display:flex; align-items:center; gap:14px;
+    background:var(--card); border:1px solid var(--line);
+    box-shadow:0 4px 16px rgba(37,99,235,0.08);
+    border-radius:16px; padding:10px 18px 10px 10px;
+  }
+  .ring{position:relative; width:58px; height:58px; flex-shrink:0;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring circle{fill:none; stroke-width:6;}
+  .ring .bg{stroke:var(--card-2);}
+  .ring .fg{stroke:var(--blue); stroke-linecap:round; transition:stroke-dashoffset .6s ease;}
+  .ring .pct{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--blue);
+  }
+  .badge .title-block .rank{font-family:var(--font-display); font-weight:700; font-size:16px; color:var(--blue-dark);}
+  .badge .title-block .pts{font-family:var(--font-mono); font-size:11px; color:var(--muted); margin-top:2px;}
+
+  .notif-banner{
+    display:none; align-items:center; gap:10px; justify-content:space-between;
+    background:var(--card-2); border:1px solid var(--line); border-radius:12px;
+    padding:10px 14px; font-size:13px; color:var(--blue-dark); margin-bottom:14px;
+  }
+  .notif-banner span{flex:1;}
+
+  .date-nav{
+    display:flex; align-items:center; gap:8px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  .date-nav button{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    width:34px; height:34px; cursor:pointer; font-size:15px; color:var(--blue-dark);
+  }
+  .date-nav button:hover{background:var(--card-2);}
+  .date-nav input[type=date]{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px; font-size:13px; color:var(--ink); font-family:var(--font-body);
+  }
+  .date-nav .today-btn{
+    background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+    padding:8px 12px; font-size:12px; color:var(--blue-dark); cursor:pointer; font-weight:600;
+  }
+  .date-nav .viewing-tag{
+    font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  }
+
+  .grid{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+
+  .panel{
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:20px; box-shadow:0 4px 16px rgba(37,99,235,0.06);
+  }
+  .panel h2{
+    font-family:var(--font-display); font-size:15px; font-weight:600;
+    color:var(--ink); margin-bottom:14px; display:flex; align-items:center; gap:8px;
+  }
+  .panel h2 .eyebrow{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em; color:var(--blue-dark);
+    text-transform:uppercase; background:var(--card-2); padding:3px 8px; border-radius:6px;
+  }
+
+  .add-row{display:flex; gap:8px; margin-bottom:10px;}
+  .add-row input[type=text]{
+    flex:1; background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; color:var(--ink); font-family:var(--font-body); font-size:14px;
+  }
+  .add-row input[type=time]{
+    background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+    padding:9px 10px; color:var(--ink); font-family:var(--font-body); font-size:13px;
+  }
+  .add-row input:focus, select:focus{outline:none; border-color:var(--blue);}
+  select{
+    background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+    color:var(--ink); padding:10px 8px; font-size:13px; font-family:var(--font-body); flex:1;
+  }
+  .btn{
+    border:none; border-radius:10px; padding:10px 16px; font-weight:600; font-size:14px;
+    cursor:pointer; font-family:var(--font-body); transition:transform .12s ease, opacity .12s ease;
+  }
+  .btn:active{transform:scale(0.96);}
+  .btn-blue{background:var(--blue); color:#FFFFFF;}
+  .btn-blue:hover{opacity:0.92;}
+  .btn-ghost{background:transparent; color:var(--blue-dark); border:1px solid var(--line);}
+  .btn-ghost:hover{color:var(--ink); border-color:var(--blue);}
+  .btn-sky{background:var(--sky); color:#FFFFFF;}
+  .btn-tiny{padding:5px 10px; font-size:12px; border-radius:8px;}
+
+  .sugg-label{font-size:11px; color:var(--muted); margin-bottom:8px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.06em;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    background:var(--card-2); border:1px solid var(--line); border-radius:20px;
+    padding:7px 14px; font-size:13px; color:var(--ink); cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .chip:hover{border-color:var(--blue); background:#E0EEFF;}
+
+  .tasks{list-style:none; display:flex; flex-direction:column; gap:8px; margin-top:4px;}
+  .task{
+    background:var(--card-2); border-radius:12px; padding:10px 12px;
+    border-left:3px solid transparent;
+  }
+  .task.flagged{border-left-color:var(--amber); background:#FFF8EC;}
+  .task.done{opacity:0.55;}
+  .task.done .task-text{text-decoration:line-through;}
+  .task-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .check{
+    width:20px; height:20px; border-radius:50%; border:2px solid var(--muted);
+    flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:11px; color:transparent; transition:all .15s ease;
+  }
+  .check.on{background:var(--leaf); border-color:var(--leaf); color:#FFFFFF;}
+  .task-text{flex:1; font-size:14px; min-width:120px;}
+  .task-time{
+    font-family:var(--font-mono); font-size:10px; color:var(--blue-dark); background:#FFFFFF;
+    padding:3px 7px; border-radius:6px; border:1px solid var(--line);
+  }
+  .task-cat{
+    font-family:var(--font-mono); font-size:10px; color:var(--blue-dark); background:#FFFFFF;
+    padding:3px 7px; border-radius:6px; text-transform:uppercase; letter-spacing:.04em;
+    border:1px solid var(--line);
+  }
+  .icon-btn{
+    background:none; border:none; cursor:pointer; font-size:14px; color:var(--muted);
+    padding:2px 4px; border-radius:6px; line-height:1;
+  }
+  .icon-btn:hover{color:var(--blue);}
+  .icon-btn.flag-on{color:var(--amber);}
+  .task-del{color:var(--muted); cursor:pointer; font-size:14px; padding:2px 6px;}
+  .task-del:hover{color:#DC2626;}
+  .empty{color:var(--muted); font-size:13px; padding:14px 0; text-align:center;}
+
+  .sub-row{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .sub-row input[type=number]{
+    width:54px; background:#FFFFFF; border:1px solid var(--line); border-radius:8px;
+    padding:6px 8px; font-size:13px; color:var(--ink); font-family:var(--font-mono);
+  }
+  .timer-display{font-family:var(--font-mono); font-size:15px; font-weight:700; color:var(--blue-dark); min-width:54px;}
+  .note-box{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
+  .note-box textarea{
+    width:100%; min-height:54px; background:#FFFFFF; border:1px solid var(--line); border-radius:8px;
+    padding:8px; font-size:13px; color:var(--ink); font-family:var(--font-body); resize:vertical;
+  }
+  .note-label{font-size:11px; color:var(--muted); margin-bottom:4px; display:block;}
+
+  .end-day{
+    margin-top:20px; display:flex; align-items:center; justify-content:space-between;
+    background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 20px;
+    flex-wrap:wrap; gap:10px; box-shadow:0 4px 16px rgba(37,99,235,0.06);
+  }
+  .end-day .copy{font-size:13px; color:var(--muted);}
+  .end-day .copy b{color:var(--ink);}
+
+  .dash{display:none; flex-direction:column; gap:18px;}
+  .dash.show{display:flex;}
+  .dash-hero{
+    background:linear-gradient(135deg, #EFF6FF, #FFFFFF);
+    border:1px solid var(--line); border-radius:20px; padding:28px;
+    display:flex; gap:28px; align-items:center; flex-wrap:wrap;
+    box-shadow:0 4px 16px rgba(37,99,235,0.08);
+  }
+  .dash-ring{position:relative; width:120px; height:120px; flex-shrink:0;}
+  .dash-ring svg{transform:rotate(-90deg);}
+  .dash-ring circle{fill:none; stroke-width:10;}
+  .dash-ring .bg{stroke:var(--card-2);}
+  .dash-ring .fg{stroke:var(--blue); stroke-linecap:round; transition:stroke-dashoffset 1s ease;}
+  .dash-ring .label{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .dash-ring .label .num{font-family:var(--font-display); font-size:30px; font-weight:700; color:var(--ink);}
+  .dash-ring .label .sub{font-family:var(--font-mono); font-size:10px; color:var(--muted); text-transform:uppercase;}
+
+  .dash-stats h3{font-family:var(--font-display); font-size:22px; color:var(--blue-dark); margin-bottom:6px;}
+  .dash-stats p{font-size:13px; color:var(--muted); line-height:1.6;}
+  .stat-row{display:flex; gap:24px; margin-top:14px; flex-wrap:wrap;}
+  .stat{font-family:var(--font-mono);}
+  .stat .v{font-size:20px; color:var(--ink); font-weight:700;}
+  .stat .k{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
+
+  .levelup{
+    background:#EAF6FF; border:1px solid var(--sky); border-radius:14px;
+    padding:12px 16px; font-size:13px; color:var(--sky); display:none; font-weight:600;
+  }
+  .levelup.show{display:block;}
+
+  .history{display:flex; gap:8px; align-items:flex-end; height:90px; margin-top:6px;}
+  .hbar{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; justify-content:flex-end; height:100%;}
+  .hbar .col{width:100%; max-width:26px; background:var(--card-2); border-radius:6px 6px 0 0; display:flex; align-items:flex-end;}
+  .hbar .fill{width:100%; background:var(--blue); border-radius:6px 6px 0 0;}
+  .hbar .d{font-family:var(--font-mono); font-size:9px; color:var(--muted);}
+
+  .missed-list{display:flex; flex-direction:column; gap:10px;}
+  .missed-item{background:var(--card-2); border-radius:12px; padding:10px 12px;}
+  .missed-item .mtext{font-size:14px; font-weight:600; color:var(--ink); margin-bottom:4px;}
+  .missed-item textarea{width:100%; min-height:44px; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:13px; font-family:var(--font-body);}
+
+  .back-link{font-size:13px; color:var(--muted); cursor:pointer; text-decoration:underline; align-self:flex-start;}
+  .back-link:hover{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Olive's Productivity Tracker</h1>
+      <p id="dateLabel">—</p>
+    </div>
+    <div class="badge">
+      <div class="ring">
+        <svg width="58" height="58" viewBox="0 0 58 58">
+          <circle class="bg" cx="29" cy="29" r="24"></circle>
+          <circle class="fg" id="headerRing" cx="29" cy="29" r="24" stroke-dasharray="150.8" stroke-dashoffset="150.8"></circle>
+        </svg>
+        <div class="pct" id="headerPct">0%</div>
+      </div>
+      <div class="title-block">
+        <div class="rank" id="rankName">Olive's Sprout</div>
+        <div class="pts" id="ptsLabel">0 pts</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="notif-banner" id="notifBanner">
+    <span>Turn on browser reminders so timed tasks can notify you while this tab is open.</span>
+    <button class="btn btn-ghost btn-tiny" id="enableNotifBtn">Enable</button>
+  </div>
+
+  <div class="date-nav">
+    <button id="prevDayBtn" title="Previous day">‹</button>
+    <input type="date" id="dateInput">
+    <button id="nextDayBtn" title="Next day">›</button>
+    <span class="today-btn" id="todayBtn">Jump to today</span>
+    <span class="viewing-tag" id="viewingTag"></span>
+  </div>
+
+  <!-- DAY VIEW -->
+  <div id="dayView">
+    <div class="grid">
+      <div class="panel">
+        <h2>Tasks<span class="eyebrow" id="taskCountLabel">0 tasks</span></h2>
+        <ul class="tasks" id="taskList"></ul>
+        <div id="emptyState" class="empty">No tasks for this day yet. Add one below.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Add a task</h2>
+        <div class="add-row">
+          <input type="text" id="taskInput" placeholder="e.g. Draft DBU revenue update" maxlength="80">
+        </div>
+        <div class="add-row">
+          <input type="time" id="timeInput">
+          <select id="catInput">
+            <option value="Work">Work</option>
+            <option value="Health">Health</option>
+            <option value="Learning">Learning</option>
+            <option value="Personal">Personal</option>
+            <option value="Errand">Errand</option>
+            <option value="Finance">Finance</option>
+            <option value="Family">Family</option>
+            <option value="Creative">Creative</option>
+            <option value="Admin">Admin</option>
+            <option value="Self-care">Self-care</option>
+          </select>
+        </div>
+        <div class="add-row">
+          <button class="btn btn-blue" id="addBtn" style="flex:1;">Add task</button>
+        </div>
+
+        <div id="suggBlock" style="margin-top:16px;">
+          <div class="sugg-label" id="suggLabel">Suggested for now</div>
+          <div class="chips" id="suggChips"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="end-day">
+      <div class="copy"><b>Done with this day?</b> Close it out and see your review.</div>
+      <button class="btn btn-sky" id="endDayBtn">End day & review</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashView" class="dash">
+    <span class="back-link" id="backLink">← Back to tasks</span>
+
+    <div class="dash-hero">
+      <div class="dash-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle class="bg" cx="60" cy="60" r="50"></circle>
+          <circle class="fg" id="dashRing" cx="60" cy="60" r="50" stroke-dasharray="314" stroke-dashoffset="314"></circle>
+        </svg>
+        <div class="label">
+          <div class="num" id="dashPct">0%</div>
+          <div class="sub">completed</div>
+        </div>
+      </div>
+      <div class="dash-stats">
+        <h3 id="dashHeadline">Day reviewed</h3>
+        <p id="dashSummary"></p>
+        <div class="stat-row">
+          <div class="stat"><div class="v" id="statDone">0/0</div><div class="k">Tasks done</div></div>
+          <div class="stat"><div class="v" id="statStreak">0</div><div class="k">Day streak</div></div>
+          <div class="stat"><div class="v" id="statTotalPts">0</div><div class="k">Total pts</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="levelup" id="levelUpBox"></div>
+
+    <div class="panel" id="missedPanel" style="display:none;">
+      <h2>What didn't get done<span class="eyebrow">add a reason</span></h2>
+      <div class="missed-list" id="missedList"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Last 7 reviewed days<span class="eyebrow">completion %</span></h2>
+      <div class="history" id="historyChart"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const STORE_PROFILE = "oliveTrack:profile";
+function taskStoreKey(dateStr){ return "oliveTrack:tasks:" + dateStr; }
+
+const TITLES = [
+  {min:0,    name:"Olive's Sprout"},
+  {min:50,   name:"Olive's Apprentice"},
+  {min:150,  name:"Olive's Operator"},
+  {min:350,  name:"Olive's Achiever"},
+  {min:700,  name:"Olive's Elite"},
+  {min:1200, name:"Olive's Legend"},
+];
+
+const SUGGESTIONS = {
+  morning: ["Plan top 3 priorities","15-min stretch","Clear inbox to zero","Drink a glass of water"],
+  afternoon: ["90-min deep work block","Quick walk / fresh air","Review pending approvals","Eat a proper lunch"],
+  evening: ["Wrap up open threads","Tidy workspace","Read for 20 minutes","Set tomorrow's top task"],
+};
+
+let state = { date: "", tasks: [] };
+let profile = { totalPoints: 0, streak: 0, lastReviewedDate: null, history: [] };
+
+// runtime-only (not persisted)
+let timerState = {};
+let timerOpenSet = new Set();
+let noteOpenSet = new Set();
+let remindedSet = new Set();
+
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function addDays(dateStr, n){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+n);
+  return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+}
+function timeBand(){
+  const h = new Date().getHours();
+  if(h < 12) return "morning";
+  if(h < 17) return "afternoon";
+  return "evening";
+}
+function titleFor(points){
+  let t = TITLES[0];
+  for(const tier of TITLES){ if(points >= tier.min) t = tier; }
+  return t;
+}
+function nextTitle(points){
+  for(const tier of TITLES){ if(points < tier.min) return tier; }
+  return null;
+}
+function formatTime(hhmm){
+  if(!hhmm) return "";
+  const [h,m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return h12 + ":" + String(m).padStart(2,"0") + " " + ampm;
+}
+function formatDateNice(dateStr){
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric", year:"numeric"});
+}
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function escapeHtml(str){
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ---------- storage ---------- */
+async function loadDate(dateStr){
+  try{
+    const r = await window.storage.get(taskStoreKey(dateStr));
+    if(r && r.value){
+      const parsed = JSON.parse(r.value);
+      state = { date: dateStr, tasks: parsed.tasks || [] };
+    } else {
+      state = { date: dateStr, tasks: [] };
+    }
+  }catch(e){
+    state = { date: dateStr, tasks: [] };
+  }
+}
+async function saveState(){
+  try{ await window.storage.set(taskStoreKey(state.date), JSON.stringify({ tasks: state.tasks })); }
+  catch(e){ console.error("save state failed", e); }
+}
+async function loadProfile(){
+  try{
+    const r = await window.storage.get(STORE_PROFILE);
+    if(r && r.value){ profile = JSON.parse(r.value); }
+  }catch(e){ /* first run */ }
+}
+async function saveProfile(){
+  try{ await window.storage.set(STORE_PROFILE, JSON.stringify(profile)); }
+  catch(e){ console.error("save profile failed", e); }
+}
+
+async function switchDate(newDateStr){
+  // clear any running timers/UI state tied to the old date's tasks
+  Object.values(timerState).forEach(ts=>{ if(ts.intervalId) clearInterval(ts.intervalId); });
+  timerState = {}; timerOpenSet = new Set(); noteOpenSet = new Set();
+  await loadDate(newDateStr);
+  document.getElementById("dateInput").value = newDateStr;
+  render();
+}
+
+/* ---------- task actions ---------- */
+function addTask(text, cat, time){
+  if(!text.trim()) return;
+  state.tasks.push({ id: uid(), text: text.trim(), cat: cat || "Work", time: time || "", done:false, flagged:false, note:"" });
+  saveState();
+  render();
+}
+function toggleTask(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.done = !t.done; saveState(); render(); }
+}
+function deleteTask(id){
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+  delete timerState[id];
+  timerOpenSet.delete(id); noteOpenSet.delete(id);
+  saveState();
+  render();
+}
+function toggleFlag(id){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.flagged = !t.flagged; saveState(); render(); }
+}
+function setNote(id, value){
+  const t = state.tasks.find(t=>t.id===id);
+  if(t){ t.note = value; saveState(); }
+}
+function toggleNoteOpen(id){
+  if(noteOpenSet.has(id)) noteOpenSet.delete(id); else noteOpenSet.add(id);
+  render();
+}
+function toggleTimerOpen(id){
+  if(timerOpenSet.has(id) && !timerState[id]) timerOpenSet.delete(id);
+  else timerOpenSet.add(id);
+  render();
+}
+
+/* ---------- sound + notifications ---------- */
+function beep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.15;
+    o.start(); setTimeout(()=>{ o.stop(); ctx.close(); }, 350);
+  }catch(e){}
+}
+function notify(title, body){
+  try{
+    if("Notification" in window && Notification.permission === "granted"){
+      new Notification(title, { body: body });
+    }
+  }catch(e){}
+}
+function setupNotifBanner(){
+  const banner = document.getElementById("notifBanner");
+  if("Notification" in window && Notification.permission === "default"){
+    banner.style.display = "flex";
+  } else {
+    banner.style.display = "none";
+  }
+}
+document.getElementById("enableNotifBtn").addEventListener("click", ()=>{
+  if("Notification" in window){
+    Notification.requestPermission().then(()=> setupNotifBanner());
+  }
+});
+
+function checkReminders(){
+  if(state.date !== todayKey()) return; // only fire reminders for today's tasks
+  const now = new Date();
+  const hhmm = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  state.tasks.forEach(t=>{
+    if(t.time && !t.done && t.time === hhmm){
+      const key = t.id + "_" + hhmm;
+      if(!remindedSet.has(key)){
+        remindedSet.add(key);
+        notify("Reminder", t.text + " was scheduled for " + formatTime(t.time));
+        beep();
+      }
+    }
+  });
+}
+setInterval(checkReminders, 20000);
+
+/* ---------- per-task timer ---------- */
+function startTimer(id){
+  const minInput = document.getElementById("timer-min-"+id);
+  const minutes = minInput ? Math.max(1, parseInt(minInput.value, 10) || 25) : 25;
+  if(!timerState[id]){
+    timerState[id] = { remaining: minutes*60, running:false, intervalId:null };
+  }
+  const ts = timerState[id];
+  if(ts.running) return;
+  ts.running = true;
+  ts.intervalId = setInterval(()=>{
+    ts.remaining -= 1;
+    const disp = document.getElementById("timer-display-"+id);
+    if(disp) disp.textContent = formatClock(ts.remaining);
+    if(ts.remaining <= 0){
+      clearInterval(ts.intervalId);
+      ts.running = false;
+      beep();
+      const t = state.tasks.find(t=>t.id===id);
+      notify("Time's up", (t ? t.text : "Task") + " - timer finished");
+      render();
+    }
+  }, 1000);
+  render();
+}
+function pauseTimer(id){
+  const ts = timerState[id];
+  if(ts && ts.running){ clearInterval(ts.intervalId); ts.running = false; render(); }
+}
+function resetTimer(id){
+  const ts = timerState[id];
+  if(ts && ts.intervalId) clearInterval(ts.intervalId);
+  delete timerState[id];
+  render();
+}
+function formatClock(totalSeconds){
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s/60);
+  const sec = s % 60;
+  return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");
+}
+
+/* ---------- render ---------- */
+function setRing(id, pct, circumference){
+  const el = document.getElementById(id);
+  const offset = circumference - (circumference * pct/100);
+  el.style.strokeDasharray = circumference;
+  el.style.strokeDashoffset = offset;
+}
+
+function render(){
+  const isToday = state.date === todayKey();
+  document.getElementById("dateLabel").textContent = formatDateNice(state.date) + (isToday ? " · today" : "");
+  document.getElementById("viewingTag").textContent = isToday ? "Viewing today" : "Viewing a different day";
+  document.getElementById("suggBlock").style.display = isToday ? "block" : "none";
+
+  const tier = titleFor(profile.totalPoints);
+  document.getElementById("rankName").textContent = tier.name;
+  document.getElementById("ptsLabel").textContent = profile.totalPoints + " pts";
+  const nt = nextTitle(profile.totalPoints);
+  const span = nt ? (nt.min - TITLES[TITLES.indexOf(tier)].min) : 1;
+  const progressed = nt ? (profile.totalPoints - TITLES[TITLES.indexOf(tier)].min) : span;
+  const pct = nt ? Math.min(100, Math.round((progressed/span)*100)) : 100;
+  setRing("headerRing", pct, 150.8);
+  document.getElementById("headerPct").textContent = pct + "%";
+
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+  document.getElementById("taskCountLabel").textContent =
+    state.tasks.filter(t=>t.done).length + "/" + state.tasks.length + " done";
+  document.getElementById("emptyState").style.display = state.tasks.length ? "none" : "block";
+
+  state.tasks.forEach(t=>{
+    const li = document.createElement("li");
+    li.className = "task" + (t.done ? " done" : "") + (t.flagged ? " flagged" : "");
+
+    const ts = timerState[t.id];
+    const showTimer = timerOpenSet.has(t.id) || !!ts;
+    const showNote = noteOpenSet.has(t.id);
+
+    let timerHtml = "";
+    if(showTimer){
+      if(ts){
+        timerHtml =
+          '<div class="sub-row">' +
+            '<span class="timer-display" id="timer-display-'+t.id+'">'+formatClock(ts.remaining)+'</span>' +
+            (ts.running
+              ? '<button class="btn btn-ghost btn-tiny" data-action="pause" data-id="'+t.id+'">Pause</button>'
+              : '<button class="btn btn-blue btn-tiny" data-action="start" data-id="'+t.id+'">'+(ts.remaining>0 ? "Resume" : "Start")+'</button>') +
+            '<button class="btn btn-ghost btn-tiny" data-action="reset" data-id="'+t.id+'">Reset</button>' +
+          '</div>';
+      } else {
+        timerHtml =
+          '<div class="sub-row">' +
+            '<input type="number" id="timer-min-'+t.id+'" value="25" min="1" max="180"> min ' +
+            '<button class="btn btn-blue btn-tiny" data-action="start" data-id="'+t.id+'">Start timer</button>' +
+          '</div>';
+      }
+    }
+
+    let noteHtml = "";
+    if(showNote){
+      noteHtml =
+        '<div class="note-box">' +
+          '<span class="note-label">Why didn\u2019t this get done / get done on time?</span>' +
+          '<textarea data-action="note" data-id="'+t.id+'" placeholder="e.g. Got pulled into a stakeholder call">'+escapeHtml(t.note||"")+'</textarea>' +
+        '</div>';
+    }
+
+    li.innerHTML =
+      '<div class="task-row">' +
+        '<div class="check '+(t.done?"on":"")+'" data-action="toggle" data-id="'+t.id+'">'+(t.done?"\u2713":"")+'</div>' +
+        '<div class="task-text">'+escapeHtml(t.text)+'</div>' +
+        (t.time ? '<span class="task-time">'+formatTime(t.time)+'</span>' : "") +
+        '<span class="task-cat">'+t.cat+'</span>' +
+        '<button class="icon-btn '+(t.flagged?"flag-on":"")+'" data-action="flag" data-id="'+t.id+'" title="Flag">&#9873;</button>' +
+        '<button class="icon-btn" data-action="timer-toggle" data-id="'+t.id+'" title="Timer">&#9201;</button>' +
+        (!t.done ? '<button class="icon-btn" data-action="note-toggle" data-id="'+t.id+'" title="Add note">&#128221;</button>' : "") +
+        '<span class="task-del" data-action="delete" data-id="'+t.id+'">&#10005;</span>' +
+      '</div>' +
+      timerHtml + noteHtml;
+    list.appendChild(li);
+  });
+
+  list.querySelectorAll('[data-action="toggle"]').forEach(el=>el.addEventListener("click", ()=>toggleTask(el.dataset.id)));
+  list.querySelectorAll('[data-action="delete"]').forEach(el=>el.addEventListener("click", ()=>deleteTask(el.dataset.id)));
+  list.querySelectorAll('[data-action="flag"]').forEach(el=>el.addEventListener("click", ()=>toggleFlag(el.dataset.id)));
+  list.querySelectorAll('[data-action="timer-toggle"]').forEach(el=>el.addEventListener("click", ()=>toggleTimerOpen(el.dataset.id)));
+  list.querySelectorAll('[data-action="note-toggle"]').forEach(el=>el.addEventListener("click", ()=>toggleNoteOpen(el.dataset.id)));
+  list.querySelectorAll('[data-action="start"]').forEach(el=>el.addEventListener("click", ()=>startTimer(el.dataset.id)));
+  list.querySelectorAll('[data-action="pause"]').forEach(el=>el.addEventListener("click", ()=>pauseTimer(el.dataset.id)));
+  list.querySelectorAll('[data-action="reset"]').forEach(el=>el.addEventListener("click", ()=>resetTimer(el.dataset.id)));
+  list.querySelectorAll('[data-action="note"]').forEach(el=>el.addEventListener("input", ()=>setNote(el.dataset.id, el.value)));
+
+  const band = timeBand();
+  document.getElementById("suggLabel").textContent = "Suggested for " + band;
+  const chips = document.getElementById("suggChips");
+  chips.innerHTML = "";
+  SUGGESTIONS[band].forEach(s=>{
+    const c = document.createElement("div");
+    c.className = "chip";
+    c.textContent = s;
+    c.addEventListener("click", ()=>addTask(s, "Personal", ""));
+    chips.appendChild(c);
+  });
+
+  renderHistory();
+}
+
+function renderHistory(){
+  const el = document.getElementById("historyChart");
+  el.innerHTML = "";
+  const last7 = profile.history.slice(-7);
+  if(last7.length === 0){
+    el.innerHTML = '<div class="empty">No reviewed days yet - end a day to start your history.</div>';
+    return;
+  }
+  last7.forEach(day=>{
+    const wrap = document.createElement("div");
+    wrap.className = "hbar";
+    const pct = day.total ? Math.round((day.done/day.total)*100) : 0;
+    wrap.innerHTML =
+      '<div class="col" style="height:64px;"><div class="fill" style="height:'+pct+'%"></div></div>' +
+      '<div class="d">'+day.date.slice(5)+'</div>';
+    el.appendChild(wrap);
+  });
+}
+
+/* ---------- end of day ---------- */
+async function endDay(){
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t=>t.done).length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  const earned = done*10 + (total>0 && done===total ? 25 : 0);
+
+  const prevTitle = titleFor(profile.totalPoints).name;
+
+  if(total > 0 && pct >= 70){ profile.streak = (profile.streak||0) + 1; }
+  else { profile.streak = 0; }
+
+  profile.totalPoints = (profile.totalPoints||0) + earned;
+  profile.lastReviewedDate = state.date;
+  profile.history = profile.history || [];
+
+  const missed = state.tasks.filter(t=>!t.done).map(t=>({ text:t.text, cat:t.cat, note:t.note||"" }));
+  profile.history.push({ date: state.date, done, total, points: earned, missed });
+  profile.history.sort((a,b)=> a.date < b.date ? -1 : 1);
+  profile.history = profile.history.slice(-30);
+
+  await saveProfile();
+
+  const newTitle = titleFor(profile.totalPoints).name;
+  const leveledUp = newTitle !== prevTitle;
+
+  document.getElementById("dashHeadline").textContent =
+    pct === 100 ? "Perfect day" : pct >= 70 ? "Solid day, well done" : "Day closed out";
+  document.getElementById("dashSummary").textContent =
+    "On " + formatDateNice(state.date) + " you completed " + done + " of " + total + " tasks and earned " + earned + " pts.";
+  document.getElementById("statDone").textContent = done + "/" + total;
+  document.getElementById("statStreak").textContent = profile.streak;
+  document.getElementById("statTotalPts").textContent = profile.totalPoints;
+  setRing("dashRing", pct, 314);
+  document.getElementById("dashPct").textContent = pct + "%";
+
+  const lvl = document.getElementById("levelUpBox");
+  if(leveledUp){ lvl.classList.add("show"); lvl.textContent = "Level up - you're now " + newTitle + "!"; }
+  else { lvl.classList.remove("show"); }
+
+  renderMissedPanel(missed);
+  renderHistory();
+  document.getElementById("dayView").style.display = "none";
+  document.getElementById("dashView").classList.add("show");
+  render();
+}
+
+function renderMissedPanel(missed){
+  const panel = document.getElementById("missedPanel");
+  const list = document.getElementById("missedList");
+  list.innerHTML = "";
+  if(!missed || missed.length === 0){ panel.style.display = "none"; return; }
+  panel.style.display = "block";
+  missed.forEach((m, idx)=>{
+    const div = document.createElement("div");
+    div.className = "missed-item";
+    div.innerHTML =
+      '<div class="mtext">'+escapeHtml(m.text)+' <span class="task-cat">'+m.cat+'</span></div>' +
+      '<textarea data-idx="'+idx+'" placeholder="Why did not this happen?">'+escapeHtml(m.note||"")+'</textarea>';
+    list.appendChild(div);
+  });
+  list.querySelectorAll("textarea").forEach(ta=>{
+    ta.addEventListener("input", async ()=>{
+      const idx = parseInt(ta.dataset.idx, 10);
+      const lastDay = profile.history[profile.history.length-1];
+      if(lastDay && lastDay.missed && lastDay.missed[idx]){
+        lastDay.missed[idx].note = ta.value;
+        await saveProfile();
+      }
+    });
+  });
+}
+
+/* ---------- wire static controls ---------- */
+document.getElementById("addBtn").addEventListener("click", ()=>{
+  const input = document.getElementById("taskInput");
+  const cat = document.getElementById("catInput").value;
+  const time = document.getElementById("timeInput").value;
+  addTask(input.value, cat, time);
+  input.value = "";
+  document.getElementById("timeInput").value = "";
+  input.focus();
+});
+document.getElementById("taskInput").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter") document.getElementById("addBtn").click();
+});
+document.getElementById("endDayBtn").addEventListener("click", endDay);
+document.getElementById("backLink").addEventListener("click", ()=>{
+  document.getElementById("dashView").classList.remove("show");
+  document.getElementById("dayView").style.display = "block";
+});
+document.getElementById("prevDayBtn").addEventListener("click", ()=> switchDate(addDays(state.date, -1)));
+document.getElementById("nextDayBtn").addEventListener("click", ()=> switchDate(addDays(state.date, 1)));
+document.getElementById("todayBtn").addEventListener("click", ()=> switchDate(todayKey()));
+document.getElementById("dateInput").addEventListener("change", (e)=>{ if(e.target.value) switchDate(e.target.value); });
+
+async function init(){
+  await loadProfile();
+  await loadDate(todayKey());
+  document.getElementById("dateInput").value = state.date;
+  setupNotifBanner();
+  render();
+}
+init();
+</script>
+</body>
+</html>

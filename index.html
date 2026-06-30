@@ -451,10 +451,14 @@
 /* ============================================================
    SUPABASE CLIENT
    ============================================================ */
-let supabase = null;
+let supabaseClient = null;
 let supaReady = false;
-if(window.supabase && SUPABASE_URL.indexOf("YOUR_SUPABASE") === -1){
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+if(window.supabase){
+  supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
   supaReady = true;
 }
 
@@ -544,13 +548,13 @@ async function initAuth(){
     document.getElementById("authSubmitBtn").disabled = true;
     return;
   }
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if(session && session.user){
     await onAuthed(session.user);
   } else {
     document.getElementById("authScreen").style.display = "block";
   }
-  supabase.auth.onAuthStateChange((event, session)=>{
+  supabaseClient.auth.onAuthStateChange((event, session)=>{
     if(event === "SIGNED_OUT"){
       currentUser = null;
       document.getElementById("appWrap").style.display = "none";
@@ -606,7 +610,7 @@ document.getElementById("authSubmitBtn").addEventListener("click", async ()=>{
 
   try{
     if(isSignUpMode){
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email, password, options: { data: { name } }
       });
       if(error) throw error;
@@ -619,7 +623,7 @@ document.getElementById("authSubmitBtn").addEventListener("click", async ()=>{
       }
       if(data.user) await onAuthed(data.user);
     } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if(error) throw error;
       if(data.user) await onAuthed(data.user);
     }
@@ -632,7 +636,7 @@ document.getElementById("authSubmitBtn").addEventListener("click", async ()=>{
 });
 
 document.getElementById("signoutBtn").addEventListener("click", async ()=>{
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
 });
 
 /* ============================================================
@@ -655,7 +659,7 @@ async function loadProfile(){
   } else {
     // first-time user: create a profile row
     profile = { total_points: 0, streak: 0, last_reviewed_date: null, history: [] };
-    await supabase.from("profiles").insert({
+    await supabaseClient.from("profiles").insert({
       id: currentUser.id, name: currentUser.name, total_points: 0, streak: 0, history: []
     });
   }
@@ -663,7 +667,7 @@ async function loadProfile(){
 }
 async function saveProfile(){
   setSyncTag("Saving…", true);
-  await supabase.from("profiles").upsert({
+  await supabaseClient.from("profiles").upsert({
     id: currentUser.id,
     name: currentUser.name,
     total_points: profile.total_points,
@@ -691,18 +695,18 @@ async function loadDate(dateStr){
   setSyncTag("Synced", false);
 }
 async function insertTaskRow(t){
-  await supabase.from("tasks").insert({
+  await supabaseClient.from("tasks").insert({
     id: t.id, user_id: currentUser.id, task_date: state.date,
     text: t.text, cat: t.cat, task_time: t.time || null, done: t.done, flagged: t.flagged, note: t.note
   });
 }
 async function updateTaskRow(t){
-  await supabase.from("tasks").update({
+  await supabaseClient.from("tasks").update({
     text: t.text, cat: t.cat, task_time: t.time || null, done: t.done, flagged: t.flagged, note: t.note
   }).eq("id", t.id);
 }
 async function deleteTaskRow(id){
-  await supabase.from("tasks").delete().eq("id", id);
+  await supabaseClient.from("tasks").delete().eq("id", id);
 }
 
 async function switchDate(newDateStr){

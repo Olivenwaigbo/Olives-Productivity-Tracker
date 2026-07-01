@@ -474,6 +474,12 @@
     <div class="panel">
       <h2>Vision board<span class="eyebrow">dream it, see it daily</span></h2>
       <div class="add-row">
+        <button class="btn btn-blue" id="visionUploadBtn" type="button">📷 Upload from device</button>
+        <input type="file" id="visionFileInput" accept="image/*" style="display:none;">
+        <span class="time-hint" id="visionUploadStatus" style="margin:0; flex:1 1 auto; align-self:center;"></span>
+      </div>
+      <div class="time-hint" style="margin-top:2px;">— or —</div>
+      <div class="add-row">
         <input type="text" id="visionImgInput" placeholder="Paste an image URL (e.g. from Pinterest, Unsplash, Google Images)">
       </div>
       <div class="add-row">
@@ -1234,10 +1240,76 @@ document.getElementById("visionBackLink").addEventListener("click", ()=>{
   document.getElementById("dateNavRow").style.display = "flex";
   document.getElementById("dayView").style.display = "block";
 });
-document.getElementById("visionAddBtn").addEventListener("click", ()=>{
+let pendingVisionFile = null;
+
+async function uploadVisionImage(file){
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = currentUser.id + "/" + uid() + "." + ext;
+  const { error } = await supabaseClient.storage
+    .from("vision-images")
+    .upload(path, file, { upsert: false, cacheControl: "3600" });
+  if(error) throw error;
+  const { data } = supabaseClient.storage.from("vision-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+document.getElementById("visionUploadBtn").addEventListener("click", ()=>{
+  document.getElementById("visionFileInput").click();
+});
+document.getElementById("visionFileInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  const status = document.getElementById("visionUploadStatus");
+  const imgInput = document.getElementById("visionImgInput");
+  if(file){
+    pendingVisionFile = file;
+    status.textContent = "Selected: " + file.name;
+    imgInput.value = "";
+    imgInput.disabled = true;
+  } else {
+    pendingVisionFile = null;
+    status.textContent = "";
+    imgInput.disabled = false;
+  }
+});
+document.getElementById("visionImgInput").addEventListener("input", (e)=>{
+  if(e.target.value.trim()){
+    pendingVisionFile = null;
+    document.getElementById("visionFileInput").value = "";
+    document.getElementById("visionUploadStatus").textContent = "";
+  }
+});
+
+document.getElementById("visionAddBtn").addEventListener("click", async ()=>{
   const imgInput = document.getElementById("visionImgInput");
   const capInput = document.getElementById("visionCaptionInput");
-  addVisionItem(imgInput.value, capInput.value);
+  const status = document.getElementById("visionUploadStatus");
+  const addBtn = document.getElementById("visionAddBtn");
+
+  if(pendingVisionFile){
+    addBtn.disabled = true;
+    status.textContent = "Uploading…";
+    try{
+      const url = await uploadVisionImage(pendingVisionFile);
+      await addVisionItem(url, capInput.value);
+      pendingVisionFile = null;
+      document.getElementById("visionFileInput").value = "";
+      status.textContent = "";
+      imgInput.disabled = false;
+      imgInput.value = "";
+      capInput.value = "";
+    }catch(err){
+      status.textContent = "Upload failed: " + (err.message || "please try again");
+    }
+    addBtn.disabled = false;
+    return;
+  }
+
+  if(!imgInput.value.trim()){
+    status.textContent = "Add an image first — upload from device or paste a URL.";
+    return;
+  }
+  status.textContent = "";
+  await addVisionItem(imgInput.value, capInput.value);
   imgInput.value = "";
   capInput.value = "";
 });

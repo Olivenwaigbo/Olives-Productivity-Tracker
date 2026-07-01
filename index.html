@@ -697,7 +697,7 @@ document.getElementById("authSubmitBtn").addEventListener("click", async ()=>{
 
     if(data.user) await onAuthed(data.user);
   }
-}
+
   }catch(e){
     errEl.style.color = "var(--red)";
     errEl.textContent = e.message || "Something went wrong.";

@@ -156,6 +156,12 @@
     background:var(--card-2); border:1px solid var(--line); border-radius:10px;
     padding:10px; color:var(--ink); font-family:var(--font-body); font-size:14px; flex:1 1 120px;
   }
+  .add-row textarea{
+    flex:1 1 100%; background:var(--card-2); border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; color:var(--ink); font-family:var(--font-body); font-size:16px;
+    resize:vertical; min-height:46px; line-height:1.4;
+  }
+  .time-hint{font-size:11px; color:var(--muted); flex:1 1 100%; margin-top:-4px; margin-bottom:2px;}
   .add-row input:focus, select:focus{outline:none; border-color:var(--blue);}
   select{
     background:var(--card-2); border:1px solid var(--line); border-radius:10px;
@@ -283,6 +289,16 @@
   .back-link{font-size:13px; color:var(--muted); cursor:pointer; text-decoration:underline; align-self:flex-start;}
   .back-link:hover{color:var(--ink);}
 
+  .vision-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; margin-top:4px;}
+  .vision-item{position:relative; border-radius:12px; overflow:hidden; border:1px solid var(--line); background:var(--card-2); box-shadow:0 2px 8px rgba(37,99,235,0.06);}
+  .vision-item img{width:100%; height:150px; object-fit:cover; display:block; background:var(--card-2);}
+  .vision-item .cap{font-size:11px; color:var(--ink); padding:7px 9px; line-height:1.35;}
+  .vision-item .del{
+    position:absolute; top:6px; right:6px; background:rgba(255,255,255,0.9); border:none;
+    border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:13px; color:var(--red); box-shadow:0 2px 6px rgba(0,0,0,0.15);
+  }
+
   @media(max-width:480px){
     body{padding:14px 10px 40px;}
     .brand h1{font-size:20px;}
@@ -342,6 +358,7 @@
           <div class="pts" id="ptsLabel">0 pts</div>
         </div>
       </div>
+      <button class="btn btn-ghost btn-tiny" id="visionBtn">✨ Vision board</button>
       <button class="signout-btn" id="signoutBtn">Sign out</button>
     </div>
   </header>
@@ -353,7 +370,7 @@
     <button class="btn btn-ghost btn-tiny" id="enableNotifBtn">Enable</button>
   </div>
 
-  <div class="date-nav">
+  <div class="date-nav" id="dateNavRow">
     <button id="prevDayBtn" title="Previous day">‹</button>
     <input type="date" id="dateInput">
     <button id="nextDayBtn" title="Next day">›</button>
@@ -372,20 +389,25 @@
       <div class="panel">
         <h2>Add a task</h2>
         <div class="add-row">
-          <input type="text" id="taskInput" placeholder="e.g. Draft DBU revenue update" maxlength="80">
+          <textarea id="taskInput" placeholder="e.g. Draft DBU revenue update" maxlength="400" rows="2"></textarea>
         </div>
         <div class="add-row">
-          <input type="time" id="timeInput">
+          <input type="time" id="timeInput" title="Start time">
+          <input type="time" id="endTimeInput" title="End time">
+        </div>
+        <div class="time-hint">Start and end time (optional)</div>
+        <div class="add-row">
           <select id="catInput">
             <option value="Work">Work</option>
             <option value="Health">Health</option>
+            <option value="Spiritual">Spiritual</option>
+            <option value="Relationship">Relationship</option>
             <option value="Learning">Learning</option>
             <option value="Personal">Personal</option>
             <option value="Errand">Errand</option>
             <option value="Finance">Finance</option>
             <option value="Family">Family</option>
             <option value="Creative">Creative</option>
-            <option value="Admin">Admin</option>
             <option value="Self-care">Self-care</option>
           </select>
         </div>
@@ -442,6 +464,30 @@
     <div class="panel">
       <h2>Last 7 reviewed days<span class="eyebrow">completion %</span></h2>
       <div class="history" id="historyChart"></div>
+    </div>
+  </div>
+
+  <!-- VISION BOARD VIEW -->
+  <div id="visionView" class="dash">
+    <span class="back-link" id="visionBackLink">← Back to tasks</span>
+
+    <div class="panel">
+      <h2>Vision board<span class="eyebrow">dream it, see it daily</span></h2>
+      <div class="add-row">
+        <input type="text" id="visionImgInput" placeholder="Paste an image URL (e.g. from Pinterest, Unsplash, Google Images)">
+      </div>
+      <div class="add-row">
+        <input type="text" id="visionCaptionInput" placeholder="Caption or affirmation (optional)" maxlength="120">
+      </div>
+      <div class="add-row">
+        <button class="btn btn-blue btn-block" id="visionAddBtn">Add to board</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Your board<span class="eyebrow" id="visionCountLabel">0 items</span></h2>
+      <div class="vision-grid" id="visionGrid"></div>
+      <div id="visionEmpty" class="empty">Your vision board is empty. Paste an image link above to add what you're working toward.</div>
     </div>
   </div>
 
@@ -690,19 +736,19 @@ async function loadDate(dateStr){
     .eq("task_date", dateStr)
     .order("created_at", { ascending: true });
   state = { date: dateStr, tasks: (data || []).map(r=>({
-    id: r.id, text: r.text, cat: r.cat, time: r.task_time || "", done: r.done, flagged: r.flagged, note: r.note || ""
+    id: r.id, text: r.text, cat: r.cat, time: r.task_time || "", endTime: r.end_time || "", done: r.done, flagged: r.flagged, note: r.note || ""
   })) };
   setSyncTag("Synced", false);
 }
 async function insertTaskRow(t){
   await supabaseClient.from("tasks").insert({
     id: t.id, user_id: currentUser.id, task_date: state.date,
-    text: t.text, cat: t.cat, task_time: t.time || null, done: t.done, flagged: t.flagged, note: t.note
+    text: t.text, cat: t.cat, task_time: t.time || null, end_time: t.endTime || null, done: t.done, flagged: t.flagged, note: t.note
   });
 }
 async function updateTaskRow(t){
   await supabaseClient.from("tasks").update({
-    text: t.text, cat: t.cat, task_time: t.time || null, done: t.done, flagged: t.flagged, note: t.note
+    text: t.text, cat: t.cat, task_time: t.time || null, end_time: t.endTime || null, done: t.done, flagged: t.flagged, note: t.note
   }).eq("id", t.id);
 }
 async function deleteTaskRow(id){
@@ -718,9 +764,9 @@ async function switchDate(newDateStr){
 }
 
 /* ---------- task actions ---------- */
-async function addTask(text, cat, time){
+async function addTask(text, cat, time, endTime){
   if(!text.trim()) return;
-  const t = { id: uid(), text: text.trim(), cat: cat || "Work", time: time || "", done:false, flagged:false, note:"" };
+  const t = { id: uid(), text: text.trim(), cat: cat || "Work", time: time || "", endTime: endTime || "", done:false, flagged:false, note:"" };
   state.tasks.push(t);
   render();
   setSyncTag("Saving…", true);
@@ -729,7 +775,11 @@ async function addTask(text, cat, time){
 }
 async function toggleTask(id){
   const t = state.tasks.find(t=>t.id===id);
-  if(t){ t.done = !t.done; render(); setSyncTag("Saving…", true); await updateTaskRow(t); setSyncTag("Synced", false); }
+  if(t){
+    t.done = !t.done;
+    if(t.done) celebrate();
+    render(); setSyncTag("Saving…", true); await updateTaskRow(t); setSyncTag("Synced", false);
+  }
 }
 async function deleteTask(id){
   state.tasks = state.tasks.filter(t=>t.id!==id);
@@ -770,6 +820,24 @@ function beep(){
     o.start(); setTimeout(()=>{ o.stop(); ctx.close(); }, 350);
   }catch(e){}
 }
+function celebrate(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6 - little "ta-da" run
+    notes.forEach((freq, i)=>{
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "sine";
+      o.frequency.value = freq;
+      const start = ctx.currentTime + i*0.09;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+      o.start(start); o.stop(start + 0.32);
+    });
+    setTimeout(()=>{ try{ ctx.close(); }catch(e){} }, 800);
+  }catch(e){}
+}
 function notify(title, body){
   try{
     if("Notification" in window && Notification.permission === "granted"){
@@ -793,13 +861,26 @@ document.getElementById("enableNotifBtn").addEventListener("click", ()=>{
 function checkReminders(){
   if(!currentUser || state.date !== todayKey()) return;
   const now = new Date();
-  const hhmm = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const nowMinutes = now.getHours()*60 + now.getMinutes();
   state.tasks.forEach(t=>{
-    if(t.time && !t.done && t.time === hhmm){
-      const key = t.id + "_" + hhmm;
+    if(!t.time || t.done) return;
+    const [sh, sm] = t.time.split(":").map(Number);
+    const startMinutes = sh*60 + sm;
+    if(nowMinutes < startMinutes) return; // not due yet
+    const minutesLate = nowMinutes - startMinutes;
+
+    // fire right at start time, then nag every 15 min while still not done
+    if(minutesLate === 0 || minutesLate % 15 === 0){
+      const key = t.id + "_" + nowMinutes;
       if(!remindedSet.has(key)){
         remindedSet.add(key);
-        notify("Reminder", t.text + " was scheduled for " + formatTime(t.time));
+        let label;
+        if(minutesLate === 0){
+          label = t.text + " was scheduled for " + formatTime(t.time) + (t.endTime ? " – " + formatTime(t.endTime) : "");
+        } else {
+          label = "Still not done: \"" + t.text + "\" — " + minutesLate + " min overdue";
+        }
+        notify("Task reminder", label);
         beep();
       }
     }
@@ -922,7 +1003,7 @@ function render(){
       '<div class="task-row">' +
         '<div class="check '+(t.done?"on":"")+'" data-action="toggle" data-id="'+t.id+'">'+(t.done?"\u2713":"")+'</div>' +
         '<div class="task-text">'+escapeHtml(t.text)+'</div>' +
-        (t.time ? '<span class="task-time">'+formatTime(t.time)+'</span>' : "") +
+        (t.time ? '<span class="task-time">'+formatTime(t.time)+(t.endTime ? " \u2013 "+formatTime(t.endTime) : "")+'</span>' : "") +
         '<span class="task-cat">'+t.cat+'</span>' +
         '<button class="icon-btn '+(t.flagged?"flag-on":"")+'" data-action="flag" data-id="'+t.id+'" title="Flag">&#9873;</button>' +
         '<button class="icon-btn" data-action="timer-toggle" data-id="'+t.id+'" title="Timer">&#9201;</button>' +
@@ -1060,13 +1141,18 @@ document.getElementById("addBtn").addEventListener("click", ()=>{
   const input = document.getElementById("taskInput");
   const cat = document.getElementById("catInput").value;
   const time = document.getElementById("timeInput").value;
-  addTask(input.value, cat, time);
+  const endTime = document.getElementById("endTimeInput").value;
+  addTask(input.value, cat, time, endTime);
   input.value = "";
   document.getElementById("timeInput").value = "";
+  document.getElementById("endTimeInput").value = "";
   input.focus();
 });
 document.getElementById("taskInput").addEventListener("keydown", (e)=>{
-  if(e.key === "Enter") document.getElementById("addBtn").click();
+  if(e.key === "Enter" && !e.shiftKey){
+    e.preventDefault();
+    document.getElementById("addBtn").click();
+  }
 });
 document.getElementById("endDayBtn").addEventListener("click", endDay);
 document.getElementById("backLink").addEventListener("click", ()=>{
@@ -1077,6 +1163,84 @@ document.getElementById("prevDayBtn").addEventListener("click", ()=> switchDate(
 document.getElementById("nextDayBtn").addEventListener("click", ()=> switchDate(addDays(state.date, 1)));
 document.getElementById("todayBtn").addEventListener("click", ()=> switchDate(todayKey()));
 document.getElementById("dateInput").addEventListener("change", (e)=>{ if(e.target.value) switchDate(e.target.value); });
+
+/* ============================================================
+   VISION BOARD
+   ============================================================ */
+let visionItems = [];
+let visionLoaded = false;
+
+async function loadVisionItems(){
+  setSyncTag("Syncing…", true);
+  const { data, error } = await supabaseClient
+    .from("vision_items")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+  visionItems = (data || []).map(r=>({ id:r.id, imageUrl:r.image_url, caption:r.caption || "" }));
+  visionLoaded = true;
+  setSyncTag("Synced", false);
+}
+
+async function addVisionItem(imageUrl, caption){
+  if(!imageUrl.trim()) return;
+  const item = { id: uid(), imageUrl: imageUrl.trim(), caption: (caption||"").trim() };
+  visionItems.unshift(item);
+  renderVisionBoard();
+  setSyncTag("Saving…", true);
+  await supabaseClient.from("vision_items").insert({
+    id: item.id, user_id: currentUser.id, image_url: item.imageUrl, caption: item.caption
+  });
+  setSyncTag("Synced", false);
+}
+
+async function deleteVisionItem(id){
+  visionItems = visionItems.filter(v=>v.id!==id);
+  renderVisionBoard();
+  await supabaseClient.from("vision_items").delete().eq("id", id);
+}
+
+function renderVisionBoard(){
+  const grid = document.getElementById("visionGrid");
+  const empty = document.getElementById("visionEmpty");
+  document.getElementById("visionCountLabel").textContent = visionItems.length + " items";
+  grid.innerHTML = "";
+  if(visionItems.length === 0){ empty.style.display = "block"; return; }
+  empty.style.display = "none";
+  visionItems.forEach(v=>{
+    const div = document.createElement("div");
+    div.className = "vision-item";
+    div.innerHTML =
+      '<img src="'+escapeHtml(v.imageUrl)+'" alt="" loading="lazy" onerror="this.style.opacity=0.25;">' +
+      '<button class="del" data-id="'+v.id+'" title="Remove">&#10005;</button>' +
+      (v.caption ? '<div class="cap">'+escapeHtml(v.caption)+'</div>' : "");
+    grid.appendChild(div);
+  });
+  grid.querySelectorAll(".del").forEach(el=>{
+    el.addEventListener("click", ()=>deleteVisionItem(el.dataset.id));
+  });
+}
+
+document.getElementById("visionBtn").addEventListener("click", async ()=>{
+  document.getElementById("dayView").style.display = "none";
+  document.getElementById("dashView").classList.remove("show");
+  document.getElementById("dateNavRow").style.display = "none";
+  document.getElementById("visionView").classList.add("show");
+  if(!visionLoaded) await loadVisionItems();
+  renderVisionBoard();
+});
+document.getElementById("visionBackLink").addEventListener("click", ()=>{
+  document.getElementById("visionView").classList.remove("show");
+  document.getElementById("dateNavRow").style.display = "flex";
+  document.getElementById("dayView").style.display = "block";
+});
+document.getElementById("visionAddBtn").addEventListener("click", ()=>{
+  const imgInput = document.getElementById("visionImgInput");
+  const capInput = document.getElementById("visionCaptionInput");
+  addVisionItem(imgInput.value, capInput.value);
+  imgInput.value = "";
+  capInput.value = "";
+});
 
 initAuth();
 </script>
